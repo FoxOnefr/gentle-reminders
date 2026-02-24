@@ -1,105 +1,144 @@
 import { useState, useEffect } from "react";
-import { CheckSquare, Calendar as CalendarIcon } from "lucide-react";
-import { useTodos, useEvents } from "@/hooks/use-todos";
-import TodoItem from "@/components/TodoItem";
-import AddTodo from "@/components/AddTodo";
-import CalendarView from "@/components/CalendarView";
-import AlertBanner from "@/components/AlertBanner";
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
-const Index = () => {
-  const [tab, setTab] = useState<"todos" | "calendar">("todos");
-  const { todos, addTodo, toggleTodo, deleteTodo } = useTodos();
-  const { events, addEvent, deleteEvent, dismissEvent, getActiveAlerts } = useEvents();
-  const [alerts, setAlerts] = useState(getActiveAlerts());
+interface Todo {
+  id: string;
+  text: string;
+  done: boolean;
+  createdAt: number;
+}
 
-  // Check for alerts every 30 seconds
+export default function Index() {
+  const [todos, setTodos] = useState<Todo[]>(() => {
+    const saved = localStorage.getItem("gr-todos");
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [input, setInput] = useState("");
+  const [visible, setVisible] = useState(false);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setAlerts(getActiveAlerts());
-    }, 30000);
-    setAlerts(getActiveAlerts());
-    return () => clearInterval(interval);
-  }, [getActiveAlerts]);
+    setVisible(true);
+  }, []);
 
-  const activeTodos = todos.filter(t => !t.completed);
-  const completedTodos = todos.filter(t => t.completed);
+  useEffect(() => {
+    localStorage.setItem("gr-todos", JSON.stringify(todos));
+  }, [todos]);
+
+  const addTodo = () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    setTodos((prev) => [
+      { id: crypto.randomUUID(), text: trimmed, done: false, createdAt: Date.now() },
+      ...prev,
+    ]);
+    setInput("");
+  };
+
+  const toggleTodo = (id: string) => {
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
+    );
+  };
+
+  const deleteTodo = (id: string) => {
+    setTodos((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const remaining = todos.filter((t) => !t.done).length;
+  const total = todos.length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-md mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Ma journée</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-          </p>
-        </div>
-
-        {/* Alerts */}
-        <AlertBanner alerts={alerts} onDismiss={(id) => { dismissEvent(id); setAlerts(getActiveAlerts()); }} />
-
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-secondary rounded-lg p-1">
-          <button
-            onClick={() => setTab("todos")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${
-              tab === "todos" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <CheckSquare className="w-4 h-4" />
-            Tâches
-          </button>
-          <button
-            onClick={() => setTab("calendar")}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-all ${
-              tab === "calendar" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <CalendarIcon className="w-4 h-4" />
-            Calendrier
-          </button>
-        </div>
-
-        {/* Content */}
-        {tab === "todos" ? (
+    <div className="app-container">
+      <header className={cn("app-header", visible && "fade-in")}>
+        <div className="header-top">
           <div>
-            <AddTodo onAdd={addTodo} />
-
-            {activeTodos.length === 0 && completedTodos.length === 0 && (
-              <div className="text-center py-12">
-                <CheckSquare className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Aucune tâche pour le moment</p>
-              </div>
-            )}
-
-            {activeTodos.map(todo => (
-              <TodoItem key={todo.id} todo={todo} onToggle={toggleTodo} onDelete={deleteTodo} />
-            ))}
-
-            {completedTodos.length > 0 && (
-              <>
-                <div className="flex items-center gap-2 mt-6 mb-3">
-                  <div className="h-px flex-1 bg-border" />
-                  <span className="text-xs text-muted-foreground">Terminées ({completedTodos.length})</span>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-                {completedTodos.map(todo => (
-                  <TodoItem key={todo.id} todo={todo} onToggle={toggleTodo} onDelete={deleteTodo} />
-                ))}
-              </>
-            )}
+            <h1 className="app-title">Gentle<br />Reminders</h1>
+            <p className="app-subtitle">
+              {total === 0
+                ? "Rien pour aujourd'hui"
+                : remaining === 0
+                ? "Tout est fait ✓"
+                : `${remaining} chose${remaining > 1 ? "s" : ""} restante${remaining > 1 ? "s" : ""}`}
+            </p>
           </div>
-        ) : (
-          <CalendarView
-            events={events}
-            onAddEvent={addEvent}
-            onDeleteEvent={deleteEvent}
-            onDismissEvent={(id) => { dismissEvent(id); setAlerts(getActiveAlerts()); }}
-          />
+          <Link to="/calendar" className="calendar-btn" aria-label="Calendrier">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+          </Link>
+        </div>
+
+        {total > 0 && (
+          <div className="progress-bar-wrap">
+            <div
+              className="progress-bar-fill"
+              style={{ width: `${((total - remaining) / total) * 100}%` }}
+            />
+          </div>
         )}
-      </div>
+      </header>
+
+      <main className={cn("todo-main", visible && "fade-in-delay")}>
+        <div className="add-row">
+          <input
+            className="todo-input"
+            placeholder="Ajouter une tâche…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addTodo()}
+          />
+          <button className="add-btn" onClick={addTodo} aria-label="Ajouter">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        </div>
+
+        <ul className="todo-list">
+          {todos.length === 0 && (
+            <li className="empty-state">
+              <span className="empty-icon">◎</span>
+              <span>Ta journée est libre</span>
+            </li>
+          )}
+          {todos.map((todo, i) => (
+            <li
+              key={todo.id}
+              className={cn("todo-item", todo.done && "todo-done")}
+              style={{ animationDelay: `${i * 40}ms` }}
+            >
+              <button
+                className="todo-check"
+                onClick={() => toggleTodo(todo.id)}
+                aria-label={todo.done ? "Décocher" : "Cocher"}
+              >
+                {todo.done ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 12l3 3 5-5" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <circle cx="12" cy="12" r="10" />
+                  </svg>
+                )}
+              </button>
+              <span className="todo-text">{todo.text}</span>
+              <button
+                className="todo-delete"
+                onClick={() => deleteTodo(todo.id)}
+                aria-label="Supprimer"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </main>
     </div>
   );
-};
-
-export default Index;
+}
