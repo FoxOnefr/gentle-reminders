@@ -468,3 +468,18 @@ html, body {
 /* ─── Safe area (mobile notch) ──────────────────────────────── */
 .app-header { padding-top: max(52px, env(safe-area-inset-top, 52px)); }
 .todo-main, .calendar-main { padding-bottom: max(100px, calc(80px + env(safe-area-inset-bottom, 0px))); }
+
+/* ─── Status messages ───────────────────────────────────────── */
+.status-msg {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  margin-bottom: 12px;
+  animation: fadeSlideUp 0.2s ease both;
+}
+.status-ok   { background: #1e2e1e; border: 1px solid #3a5a3a; color: #7acc7a; }
+.status-warn { background: #2a2010; border: 1px solid #5a4a20; color: #c8a850; }
+
+/* Disabled button */
+.confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
